@@ -9,6 +9,19 @@
 #include <string.h>
 #include <stdlib.h>
 
+#ifdef __APPLE__
+#include <mach/clock.h>
+#include <mach/mach.h>
+#define clock_gettime(type, tiref) {\
+                                clock_serv_t cclock;\
+                                mach_timespec_t mts;\
+                                host_get_clock_service(mach_host_self(), CALENDAR_CLOCK, &cclock);\
+                                clock_get_time(cclock, &mts);\
+                                mach_port_deallocate(mach_task_self(), cclock);\
+                                (*tiref).tv_sec = mts.tv_sec;\
+                                (*tiref).tv_nsec = mts.tv_nsec;\
+                    }
+#endif
 typedef void (*timer_execute_func)(void *ud,void *arg);
 
 #define TIME_NEAR_SHIFT 8
@@ -235,7 +248,9 @@ skynet_timer_init(void) {
 	TI->current = _gettime();
 
 	struct timespec ti;
-	clock_gettime(CLOCK_REALTIME, &ti);
+    
+    clock_gettime(CLOCK_REALTIME, &ti);
+    
 	uint32_t sec = (uint32_t)ti.tv_sec;
 	uint32_t mono = _gettime() / 100;
 
